@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:qrcode_maker/constans/constans.dart';
 import 'package:qrcode_maker/screens/appScreen.dart';
+import 'package:internet_connection_checker/internet_connection_checker.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,7 +13,42 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  late StreamSubscription<InternetConnectionStatus> _connectionSubscription;
+
   String userUrl = '';
+  bool isFirstTime = true;
+  bool net_status = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Listen for internet connection changes
+    _connectionSubscription =
+        InternetConnectionChecker().onStatusChange.listen((status) {
+      final messenger = ScaffoldMessenger.of(context);
+      if (status == InternetConnectionStatus.connected) {
+        net_status = false;
+        if (isFirstTime) {
+          isFirstTime = false;
+          return;
+        }
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Internet connection restored!'),
+          ),
+        );
+      } else if (status == InternetConnectionStatus.disconnected) {
+        net_status = true;
+        messenger.showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Disconnected from the internet!'),
+          ),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,12 +108,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     backgroundColor: darkBlack,
                   ),
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: ((context) => AppScreen(userUrl: userUrl)),
-                      ),
-                    );
+                    if (net_status || userUrl == '') {
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: ((context) => AppScreen(userUrl: userUrl)),
+                        ),
+                      );
+                    }
                   },
                   child: Text(
                     'Generate QRCode',
@@ -114,5 +155,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    // Cancel the subscription
+    _connectionSubscription.cancel();
+    super.dispose();
   }
 }
